@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual Spinning Wheels</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .wheels {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 900px;
+        }
+        .left-wheel, .right-wheel {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+        .wheel-container {
+            width: 100%;
+            height: 100%;
+        }
+        .pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid red;
+            z-index: 10;
+        }
+        .inputs {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 900px;
+            margin: 20px 0;
+        }
+        .left-inputs, .right-inputs {
+            display: flex;
+            flex-direction: column;
+        }
+        .slice-input {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .results {
+            margin-top: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .result-left {
+            color: #FF6384;
+        }
+        .result-right {
+            color: #36A2EB;
+        }
+    </style>
+</head>
+<body>
+    <div class="wheels">
+        <div class="left-wheel">
+            <div class="wheel-container"></div>
+            <div class="pointer"></div>
+        </div>
+        <div class="right-wheel">
+            <div class="wheel-container"></div>
+            <div class="pointer"></div>
+        </div>
+    </div>
+
+    <div class="inputs">
+        <div class="left-inputs">
+            <h2>Left Wheel (starts with 6 slices)</h2>
+            <input type="text" class="slice-input" value="Option 1">
+            <input type="text" class="slice-input" value="Option 2">
+            <input type="text" class="slice-input" value="Option 3">
+            <input type="text" class="slice-input" value="Option 4">
+            <input type="text" class="slice-input" value="Option 5">
+            <input type="text" class="slice-input" value="Option 6">
+        </div>
+        <div class="right-inputs">
+            <h2>Right Wheel (starts with 8 slices)</h2>
+            <input type="text" class="slice-input" value="Option 1">
+            <input type="text" class="slice-input" value="Option 2">
+            <input type="text" class="slice-input" value="Option 3">
+            <input type="text" class="slice-input" value="Option 4">
+            <input type="text" class="slice-input" value="Option 5">
+            <input type="text" class="slice-input" value="Option 6">
+            <input type="text" class="slice-input" value="Option 7">
+            <input type="text" class="slice-input" value="Option 8">
+        </div>
+    </div>
+
+    <button id="update-btn">Update Wheels</button>
+
+    <div class="controls">
+        <button id="spin-btn">Spin</button>
+        <button id="stop-btn" disabled>Stop</button>
+    </div>
+
+    <div class="results" id="results">
+        <!-- Winning options will appear here -->
+    </div>
+
+    <script type="module">
+        import { Wheel } from 'https://cdn.jsdelivr.net/npm/spin-wheel@5.0.2/dist/spin-wheel-esm.js';
+
+        const leftContainer = document.querySelector('.left-wheel .wheel-container');
+        const rightContainer = document.querySelector('.right-wheel .wheel-container');
+        const updateBtn = document.getElementById('update-btn');
+        const spinBtn = document.getElementById('spin-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const resultsDiv = document.getElementById('results');
+
+        let leftWheel, rightWheel;
+        let isSpinning = false;
+        let stoppedWheels = 0;
+        let lastLeftWinner = null;
+        let lastRightWinner = null;
+
+        function createWheel(container, numSlices) {
+            const props = {
+                radius: 0.95,
+                pointerAngle: 0,
+                itemLabelRadius: 0.92,
+                itemLabelFont: 'sans-serif',
+                itemLabelFontSizeMax: 50,
+                itemLabelAlign: 'center',
+                itemLabelBaselineOffset: -0.07,
+                itemLabelRotation: 90,
+                itemBackgroundColors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#C0C0C0'],
+                itemLabelColors: ['#000000'],
+                rotationResistance: -35,
+                lineWidth: 1,
+                lineColor: '#FFFFFF',
+                isInteractive: false,
+                items: Array.from({ length: numSlices }, (_, i) => ({ label: `Option ${i + 1}` })),
+            };
+            return new Wheel(container, props);
+        }
+
+        leftWheel = createWheel(leftContainer, 6);
+        rightWheel = createWheel(rightContainer, 8);
+
+        // Update wheels from input fields
+        updateBtn.addEventListener('click', () => {
+            const leftInputs = document.querySelectorAll('.left-inputs .slice-input');
+            const leftItems = Array.from(leftInputs).map(input => ({ label: input.value.trim() || 'Empty' }));
+            leftWheel.items = leftItems;
+
+            const rightInputs = document.querySelectorAll('.right-inputs .slice-input');
+            const rightItems = Array.from(rightInputs).map(input => ({ label: input.value.trim() || 'Empty' }));
+            rightWheel.items = rightItems;
+
+            // Clear previous results when updating
+            resultsDiv.innerHTML = '';
+            lastLeftWinner = null;
+            lastRightWinner = null;
+        });
+
+        // Spin button - also removes previous winners
+        spinBtn.addEventListener('click', () => {
+            if (leftWheel.items.length === 0 || rightWheel.items.length === 0) {
+                alert('One or both wheels have no options left!');
+                return;
+            }
+
+            // Remove previous winners (if any)
+            if (lastLeftWinner !== null) {
+                leftWheel.items = leftWheel.items.filter(item => item.label !== lastLeftWinner);
+            }
+            if (lastRightWinner !== null) {
+                rightWheel.items = rightWheel.items.filter(item => item.label !== lastRightWinner);
+            }
+            lastLeftWinner = null;
+            lastRightWinner = null;
+            resultsDiv.innerHTML = '';
+
+            // Start spinning
+            leftWheel.rotationResistance = 0;
+            leftWheel.spin(300);
+
+            rightWheel.rotationResistance = 0;
+            rightWheel.spin(-300);
+
+            isSpinning = true;
+            stoppedWheels = 0;
+            spinBtn.disabled = true;
+            stopBtn.disabled = false;
+        });
+
+        // Stop button
+        stopBtn.addEventListener('click', () => {
+            if (!isSpinning) return;
+            spinStopWheel(leftWheel);
+            spinStopWheel(rightWheel);
+            isSpinning = false;
+            stopBtn.disabled = true;
+        });
+
+        function spinStopWheel(wheel) {
+            const numItems = wheel.items.length;
+            const randomIndex = Math.floor(Math.random() * numItems);
+            const duration = 3000 + Math.random() * 2000;
+            const revolutions = 3 + Math.floor(Math.random() * 3);
+            const direction = Math.random() < 0.5 ? 1 : -1;
+
+            wheel.spinToItem(randomIndex, duration, true, revolutions, direction);
+        }
+
+        // When a wheel stops, record the winner and show results
+        leftWheel.onRest = (e) => {
+            const index = e.currentIndex;
+            lastLeftWinner = leftWheel.items[index].label;
+
+            checkIfBothStopped();
+        };
+
+        rightWheel.onRest = (e) => {
+            const index = e.currentIndex;
+            lastRightWinner = rightWheel.items[index].label;
+
+            checkIfBothStopped();
+        };
+
+        function checkIfBothStopped() {
+            stoppedWheels++;
+            if (stoppedWheels === 2) {
+                // Both wheels stopped - show results
+                resultsDiv.innerHTML = `
+                    <div>Left Wheel landed on: <span class="result-left">${lastLeftWinner}</span></div>
+                    <div>Right Wheel landed on: <span class="result-right">${lastRightWinner}</span></div>
+                    <div style="margin-top: 20px; font-size: 18px; font-weight: normal;">
+                        Press <strong>Spin</strong> again to remove these and spin with the remaining options.
+                    </div>
+                `;
+                spinBtn.disabled = false;
+                stoppedWheels = 0;
+            }
+        }
+    </script>
+</body>
+</html>
